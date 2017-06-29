@@ -5,42 +5,45 @@
     https://github.com/motorola-mobility/montage/blob/master/LICENSE.md
 */
 /*global bootstrap, define, global */
-(function (definition) {
+(function (root, factory) {
 
-    // Boostrapping Browser
+    // Boostrapping Browser or Worker
     if (typeof bootstrap !== "undefined") {
+        bootstrap("require", function (require, exports) {
+            var Promise = require("promise").Promise;
+            var URL = require("mini-url");
+            factory(exports, Promise, URL);
 
-        // Window
-        if (typeof window !== "undefined") {
-            bootstrap("require", function (require, exports) {
-                var Promise = require("promise");
-                var URL = require("mini-url");
-                definition(exports, Promise, URL);
+            // Only Browser
+            if (typeof window !== "undefined") {
                 require("require/browser");
-            });
+            }
+        });
 
-        // Worker
-        } else {
-            bootstrap("require", function (require, exports) {
-                var Promise = require("promise").Promise;
-                var URL = require("mini-url");
-                definition(exports, Promise, URL);
-            });
-        }
+    } else if (typeof define === 'function' && define.amd) {
+        // AMD. Register as an anonymous module.
+        define('mr', ['exports', 'bluebird', 'url'], factory);
+    } else if (typeof exports === 'object') {
+        // Node. Does not work with strict CommonJS, but
+        // only CommonJS-like environments that support module.exports,
+        // like Node.
 
-    // Node Server
-    } else if (typeof process !== "undefined") {
-        // the parens trick the heuristic scanner for static dependencies, so
-        // they are not pre-loaded by the asynchronous browser loader
         var Promise = (require)("bluebird");
         var URL = (require)("url");
-        definition(exports, Promise, URL);
-        (require)("./node");
+
+        // the parens trick the heuristic scanner for static dependencies, so
+        // they are not pre-loaded by the asynchronous browser loader
+        factory(exports, Promise, URL);
+
+        // Only for NodeJS
+        if (typeof process !== "undefined") {
+            (require)("./node");
+        }
     } else {
         throw new Error("Can't support require on this platform");
     }
 
-})(function (Require, Promise, URL) {
+}(this, function (exports, Promise, URL) {
 
     "use strict";
 
@@ -399,6 +402,8 @@
     //
     //
     //
+
+    var Require = exports;
 
     var isLowercasePattern = /^[a-z]+$/;
     Require.makeRequire = function (config) {
@@ -1354,4 +1359,4 @@
             }
         };
     };
-});
+}));

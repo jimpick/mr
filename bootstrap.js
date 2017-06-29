@@ -200,7 +200,7 @@
             "require/browser": "browser.js",
         };
 
-        var domLoaded, URL,
+        var domLoaded, Require, Promise, URL,
             params = getParams();
 
         function callbackIfReady() {
