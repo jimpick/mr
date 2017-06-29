@@ -1,4 +1,4 @@
-/*global define */
+/*global define, callbackApplication */
 (function (root, factory) {
     if (typeof define === 'function' && define.amd) {
         // AMD. Register as an anonymous module.
@@ -55,7 +55,7 @@
                     scriptLocation = match[1];
                 }
                 if (script.hasAttribute("data-" + dataAttrPreffix + "-location")) {
-                    scriptLocation = resolve(window.location, script.getAttribute("data-" + dataAttrPreffix + "-location"));
+                    scriptLocation = script.getAttribute("data-" + dataAttrPreffix + "-location");
                 }
                 if (scriptLocation) {
                     if (script.dataset) {
@@ -211,14 +211,6 @@
             }
         }
 
-        // execute bootstrap scripts
-        function allModulesLoaded() {
-            Promise = bootRequire("promise");
-            Require = bootRequire("require");
-            URL = bootRequire("mini-url");
-            callbackIfReady();
-        }
-
         // observe dom loading and load scripts in parallel
         function domLoad() {
             // observe dom loaded
@@ -236,6 +228,14 @@
                 bootModules[id] = definitions[id](bootRequire, exports) || exports;
             }
             return bootModules[id];
+        }
+
+        // execute bootstrap scripts
+        function allModulesLoaded() {
+            Promise = bootRequire("promise");
+            Require = bootRequire("require");
+            URL = bootRequire("mini-url");
+            callbackIfReady();
         }
 
         // this permits bootstrap.js to be injected after DOMContentLoaded
@@ -262,7 +262,7 @@
             // of the bootstrap function and proceed.
             delete global.bootstrap;
             allModulesLoaded();
-        };
+        }
 
         function bootstrapModulePromise(Promise) {
             bootstrapModule("bluebird", function (mrRequire, exports) {
@@ -289,7 +289,7 @@
 
             if (Promise) {
                 //global.bootstrap cleans itself from window once all known are loaded. "bluebird" is not known, so needs to do it first
-                bootstrapModulePromise(Promise)
+                bootstrapModulePromise(Promise);
             } else {
                 var promiseLocation = params.promiseLocation || resolve(bootstrapLocation, pending.promise);
                 // Special Case bluebird for now:
