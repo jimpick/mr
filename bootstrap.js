@@ -1,41 +1,48 @@
-/*global module: false, define, callbackApplication */
+/*global define */
 (function (root, factory) {
     if (typeof define === 'function' && define.amd) {
         // AMD. Register as an anonymous module.
-        define('mr', [], factory);
-    } else if (typeof module === 'object' && module.exports) {
+        define(['exports', 'bluebird', 'require'], function (exports, bluebird, require) {
+            factory((root.mr = exports), bluebird, require);
+        });
+    } else if (typeof exports === 'object') {
         // Node. Does not work with strict CommonJS, but
         // only CommonJS-like environments that support module.exports,
         // like Node.
-        module.exports = factory(require, exports, module);
+        factory(exports);
     } else {
         // Browser globals (root is window)
-        root.Montage = factory({}, {}, {});
+        factory((root.mr = {}));
     }
-}(this, function (require, exports, module) {
+}(this, function (exports, Promise, Require) {
+    
     "use strict";
 
     // reassigning causes eval to not use lexical scope.
     var globalEval = eval,
-        global = globalEval('this');
+    /*jshint evil:true */
+    global = globalEval('this'); 
+    /*jshint evil:false */
 
     //
+    // Browser Platform 
     //
-    //
+
+    var paramsCache,
+        dataAttrPreffix = 'mr',
+        bootstrapScriptName = 'bootstrap',
+        dataAttrPattern = /^data-(.*)$/,
+        boostrapPattern = new RegExp('^(.*)' + bootstrapScriptName + '.js(?:[\?\.]|$)', 'i'),
+        letterAfterDashPattern = /-([a-z])/g;
 
     function upperCaseChar(_, c) {
         return c.toUpperCase();
     }
 
-    var paramsCache,
-        dataAttrPattern = /^data-(.*)$/,
-        boostrapPattern = /^(.*)bootstrap.js(?:[\?\.]|$)/i,
-        letterAfterDashPattern = /-([a-z])/g;
-
     function getParams() {
         var i, j,
             match, script, scripts,
-            mrLocation, attr, name;
+            scriptLocation, attr, name;
 
         if (!paramsCache) {
             paramsCache = {};
@@ -45,12 +52,12 @@
             for (i = 0; i < scripts.length; i++) {
                 script = scripts[i];
                 if (script.src && (match = script.src.match(boostrapPattern))) {
-                    mrLocation = match[1];
+                    scriptLocation = match[1];
                 }
-                if (script.hasAttribute("data-mr-location")) {
-                    mrLocation = resolve(window.location, script.getAttribute("data-mr-location"));
+                if (script.hasAttribute("data-" + dataAttrPreffix + "-location")) {
+                    scriptLocation = resolve(window.location, script.getAttribute("data-" + dataAttrPreffix + "-location"));
                 }
-                if (mrLocation) {
+                if (scriptLocation) {
                     if (script.dataset) {
                         for (name in script.dataset) {
                             if (script.dataset.hasOwnProperty(name)) {
@@ -70,7 +77,7 @@
                     // removing as they are discovered, next one
                     // finds itself.
                     script.parentNode.removeChild(script);
-                    paramsCache.mrLocation = mrLocation;
+                    paramsCache.bootstrapLocation = paramsCache[dataAttrPreffix + 'Location'] = scriptLocation;
                     break;
                 }
             }
@@ -94,7 +101,6 @@
         }
 
         if (typeof document !== "undefined") {
-
             script = document.createElement("script");
             script.setAttribute('async', '');
             script.setAttribute('src', location);
@@ -110,7 +116,7 @@
                 }
                 finallyHandler();
             };
-            document.querySelector("head").appendChild(script);
+            document.head.appendChild(script);
         } else {
             errorCallback(new Error("document not supported"));
             finallyHandler();
@@ -118,46 +124,67 @@
     }
 
     // mini-url library
-    var isAbsolutePattern = /^[\w\-]+:/;
-    function makeResolve() {
-        var baseElement = document.querySelector("base"),
-            existingBaseElement = baseElement;
+    var resolve = (function makeResolve() {
+            
+        try {
 
-        if (!existingBaseElement) {
-            baseElement = document.createElement("base");
-            baseElement.href = "";
-        }
+            var testHost = "http://example.org",
+                testPath = "/test.html",
+                resolved = new URL(testPath, testHost).href;
 
-        return function (base, relative) {
+            if (!resolved || resolved !== testHost + testPath) {
+                throw new Error('NotSupported');
+            }
 
-            base = String(base);
+            return function (base, relative) {
+                return new URL(relative, base).href;
+            };
 
-            var resolved, restore,
+        } catch (err) {
+
+            var IS_ABSOLUTE_REG = /^[\w\-]+:/,
                 head = document.querySelector("head"),
-                relativeElement = document.createElement("a");
+                currentBaseElement = head.querySelector("base"),
+                baseElement = document.createElement("base"),
+                relativeElement = document.createElement("a"),
+                needsRestore = false;
 
-            if (!existingBaseElement) {
-                head.appendChild(baseElement);
-            }
+                if(currentBaseElement) {
+                    needsRestore = true;
+                }
+                else {
+                    currentBaseElement = document.createElement("base");
+                }
 
-            if (!isAbsolutePattern.test(base)) {
-                throw new Error("Can't resolve " + JSON.stringify(relative) + " relative to " + JSON.stringify(base));
-            }
+            // Optimization, we won't check ogain if there's a base tag.
+            baseElement.href = "";
 
-            restore = baseElement.href;
-            baseElement.href = base;
-            relativeElement.href = relative;
-            resolved = relativeElement.href;
-            baseElement.href = restore;
-            if (!existingBaseElement) {
-                head.removeChild(baseElement);
-            }
+            return function (base, relative) {
+                var restore;
 
-            return resolved;
-        };
-    }
+                if (!needsRestore) {
+                    head.appendChild(currentBaseElement);
+                }
 
-    var resolve = makeResolve();
+                base = String(base);
+                if (IS_ABSOLUTE_REG.test(base) === false) {
+                    throw new Error("Can't resolve from a relative location: " + JSON.stringify(base) + " " + JSON.stringify(relative));
+                }
+                if(needsRestore) {
+                    restore = currentBaseElement.href;
+                }
+                currentBaseElement.href = base;
+                relativeElement.href = relative;
+                var resolved = relativeElement.href;
+                if (needsRestore) {
+                    currentBaseElement.href = restore;
+                } else {
+                    head.removeChild(currentBaseElement);
+                }
+                return resolved;
+            };
+        }
+    }());
 
     //
     //
@@ -167,6 +194,13 @@
     var bootstrap = function (callback) {
 
         callback = callback || callbackApplication;
+
+        // determine which scripts to load
+        var pending = {
+            "promise": "node_modules/bluebird/js/browser/bluebird.min.js",
+            "require": "require.js",
+            "require/browser": "browser.js",
+        };
 
         var domLoaded, Require, Promise, URL,
             params = getParams();
@@ -212,42 +246,6 @@
             document.addEventListener("DOMContentLoaded", domLoad, true);
         }
 
-        // determine which scripts to load
-        var pending = {
-            "promise": "node_modules/bluebird/js/browser/bluebird.min.js",
-            "require": "require.js",
-            "require/browser": "browser.js",
-        };
-
-        // Handle preload
-        // TODO rename to MontagePreload
-        if (!global.preload) {
-            var mrLocation = resolve(window.location, params.mrLocation),
-                promiseLocation = params.promiseLocation || resolve(mrLocation, pending.promise);
-                
-            // Special Case bluebird for now:
-            load(promiseLocation, function() {
-                
-                //global.bootstrap cleans itself from window once all known are loaded. "bluebird" is not known, so needs to do it first
-                global.bootstrap("bluebird", function (mrRequire, exports) {
-                    return window.Promise;
-                });
-
-                global.bootstrap("promise", function (mrRequire, exports) {
-                    return window.Promise;
-                });
-            });
-
-            // Load other module and skip promise
-            for (var id in pending) {
-                if (pending.hasOwnProperty(id)) {
-                    if (id !== 'promise') {
-                        load(resolve(mrLocation, pending[id]));   
-                    }
-                }
-            }       
-        }
-
         // register module definitions for deferred, serial execution
         global.bootstrap = function (id, factory) {
             definitions[id] = factory;
@@ -270,12 +268,45 @@
         global.bootstrap("mini-url", function (mrRequire, exports) {
             exports.resolve = resolve;
         });
+
+        // Handle preload
+        // TODO rename to MontagePreload
+        if (!global.preload) {
+            var bootstrapLocation = resolve(window.location, params.bootstrapLocation),
+                promiseLocation = params.promiseLocation || resolve(bootstrapLocation, pending.promise);
+                
+            // Special Case bluebird for now:
+            load(promiseLocation, function() {
+                
+                //global.bootstrap cleans itself from window once all known are loaded. "bluebird" is not known, so needs to do it first
+                global.bootstrap("bluebird", function (mrRequire, exports) {
+                    return window.Promise;
+                });
+
+                global.bootstrap("promise", function (mrRequire, exports) {
+                    return window.Promise;
+                });
+            });
+
+            // Load other module and skip promise
+            for (var id in pending) {
+                if (pending.hasOwnProperty(id)) {
+                    if (id !== 'promise') { // Let special case load promise
+                        load(resolve(bootstrapLocation, pending[id]));   
+                    }
+                }
+            }       
+        }
     };
 
     var browser = {
         getParams: getParams,
         bootstrap: bootstrap
     };
+
+    //
+    // External API
+    //
 
     // Bootstrapping for multiple-platforms
     exports.getPlatform = function() {
@@ -287,8 +318,6 @@
             throw new Error("Platform not supported.");
         }
     };
-
-    exports.Require = null;
 
     /**
      * Initializes Montage and creates the application singleton if
@@ -342,7 +371,7 @@
             }
 
             mrRequire.loadPackage({
-                location: params.mrLocation,
+                location: params.bootstrapLocation,
                 hash: params.mrHash
             }, config).then(function (mrRequire) {
                 mrRequire.inject("mini-url", URL);
@@ -358,8 +387,8 @@
                     hash: params.applicationHash
                 }).then(function (pkg) {
 
-                    // Expose global require and mr
-                    global.require = global.mr = pkg;
+                    // Expose global require
+                    global.require = pkg;
                     
                     return pkg.async(applicationModuleId);
                 });
