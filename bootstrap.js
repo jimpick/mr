@@ -2,20 +2,26 @@
 (function (root, factory) {
     if (typeof define === 'function' && define.amd) {
         // AMD. Register as an anonymous module.
-        define('mr', ['exports', 'require', 'bluebird'], factory);
+        define('mr', ['exports', 'bluebird', 'require'], factory);
     } else if (typeof exports === 'object') {
         // Node. Does not work with strict CommonJS, but
         // only CommonJS-like environments that support module.exports,
         // like Node.
-        factory(exports);
+
+        var Promise = (require)("bluebird");
+        var require = (require)("require");
+
+        // the parens trick the heuristic scanner for static dependencies, so
+        // they are not pre-loaded by the asynchronous browser loader
+        factory(exports, Promise, require);
     } else {
         // Browser globals (root is window)
         factory((root.mr = {}));
     }
-}(this, function (exports, Promise, Require) {
+}(this, function (exports, Promise, require) {
     
     "use strict";
-
+    
     // reassigning causes eval to not use lexical scope.
     var globalEval = eval,
     /*jshint evil:true */
@@ -200,7 +206,7 @@
             "require/browser": "browser.js",
         };
 
-        var domLoaded, Require, Promise, URL,
+        var domLoaded, Require, URL,
             params = getParams();
 
         function callbackIfReady() {

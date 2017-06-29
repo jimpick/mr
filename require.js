@@ -10,7 +10,7 @@
     // Boostrapping Browser or Worker
     if (typeof bootstrap !== "undefined") {
         bootstrap("require", function (require, exports) {
-            var Promise = require("promise").Promise;
+            var Promise = require("bluebird");
             var URL = require("mini-url");
             factory(exports, Promise, URL);
 
@@ -46,7 +46,7 @@
 }(this, function (exports, Promise, URL) {
 
     "use strict";
-
+    
     // reassigning causes eval to not use lexical scope.
     var globalEval = eval,
         /*jshint evil:true */
