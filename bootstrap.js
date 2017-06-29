@@ -2,9 +2,7 @@
 (function (root, factory) {
     if (typeof define === 'function' && define.amd) {
         // AMD. Register as an anonymous module.
-        define(['exports', 'bluebird', 'require'], function (exports, bluebird, require) {
-            factory((root.mr = exports), bluebird, require);
-        });
+        define('mr', ['exports', 'require', 'bluebird'], factory);
     } else if (typeof exports === 'object') {
         // Node. Does not work with strict CommonJS, but
         // only CommonJS-like environments that support module.exports,
@@ -202,7 +200,7 @@
             "require/browser": "browser.js",
         };
 
-        var domLoaded, Require, Promise, URL,
+        var domLoaded, URL,
             params = getParams();
 
         function callbackIfReady() {
