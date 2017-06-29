@@ -247,7 +247,7 @@
         }
 
         // register module definitions for deferred, serial execution
-        global.bootstrap = function (id, factory) {
+        function bootstrapModule(id, factory) {
             definitions[id] = factory;
             delete pending[id];
             for (id in pending) {
@@ -264,29 +264,39 @@
             allModulesLoaded();
         };
 
+        function bootstrapModulePromise(Promise) {
+            bootstrapModule("bluebird", function (mrRequire, exports) {
+                return Promise;
+            });
+
+            bootstrapModule("promise", function (mrRequire, exports) {
+                return Promise;
+            });
+        }
+
+        // Expose bootstrap
+        global.bootstrap = bootstrapModule;
+
         // one module loaded for free, for use in require.js, browser.js
-        global.bootstrap("mini-url", function (mrRequire, exports) {
+        bootstrapModule("mini-url", function (mrRequire, exports) {
             exports.resolve = resolve;
         });
 
-        // Handle preload
-        // TODO rename to MontagePreload
-        if (!global.preload) {
-            var bootstrapLocation = resolve(window.location, params.bootstrapLocation),
-                promiseLocation = params.promiseLocation || resolve(bootstrapLocation, pending.promise);
-                
-            // Special Case bluebird for now:
-            load(promiseLocation, function() {
-                
-                //global.bootstrap cleans itself from window once all known are loaded. "bluebird" is not known, so needs to do it first
-                global.bootstrap("bluebird", function (mrRequire, exports) {
-                    return window.Promise;
-                });
+        // load in parallel, but only if we're not using a preloaded cache.
+        // otherwise, these scripts will be inlined after already
+        if (!global.preload || !global.BUNDLE) {
+            var bootstrapLocation = resolve(window.location, params.bootstrapLocation);
 
-                global.bootstrap("promise", function (mrRequire, exports) {
-                    return window.Promise;
-                });
-            });
+            if (Promise) {
+                //global.bootstrap cleans itself from window once all known are loaded. "bluebird" is not known, so needs to do it first
+                bootstrapModulePromise(Promise)
+            } else {
+                var promiseLocation = params.promiseLocation || resolve(bootstrapLocation, pending.promise);
+                // Special Case bluebird for now:
+                load(promiseLocation, function() {
+                    bootstrapModulePromise((Promise = window.Promise));
+                });   
+            }
 
             // Load other module and skip promise
             for (var id in pending) {
