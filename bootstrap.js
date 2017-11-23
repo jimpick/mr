@@ -197,7 +197,7 @@
                     "promise": {
                         global: "Promise",
                         export: "Promise",
-                        location: "node_modules/bluebird/js/browser/bluebird.min.js",
+                        location: "../../node_modules/bluebird/js/browser/bluebird.min.js",
                     },
                     "require": {
                         exports: mr, // Preloaded

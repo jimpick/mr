@@ -402,7 +402,8 @@
         delete description.overlay;
 
         if (config.strategy === 'flat') {
-            config.packagesDirectory = URL.resolve(config.mainPackageLocation, "node_modules/");
+            // config.packagesDirectory = URL.resolve(config.mainPackageLocation, "node_modules/");
+            config.packagesDirectory = URL.resolve(document.origin, "node_modules/");
         } else {
             config.packagesDirectory = URL.resolve(location, "node_modules/");
         }
@@ -1022,7 +1023,16 @@
 
                 descriptions[location] = promise.then(function (json) {
                     try {
-                        return JSON.parse(json);
+                        const parsedJson = JSON.parse(json);
+                        if (parsedJson.name !== 'assert') {
+                            parsedJson.dependencies = parsedJson.dependencies || []
+                            parsedJson.dependencies.assert = '^1.4.1'
+                        }
+                        if (parsedJson.name !== 'url') {
+                            parsedJson.dependencies = parsedJson.dependencies || []
+                            parsedJson.dependencies.url = '^0.11.0'
+                        }
+                        return parsedJson;
                     } catch (error) {
                         error.message = "Loading package description at '" + location + "' failed cause: " + error.message + " in " + JSON.stringify(descriptionLocation);
                         throw error;
