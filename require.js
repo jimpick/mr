@@ -403,7 +403,12 @@
 
         if (config.strategy === 'flat') {
             // config.packagesDirectory = URL.resolve(config.mainPackageLocation, "node_modules/");
-            config.packagesDirectory = URL.resolve(document.origin, "node_modules/");
+            if (config.packagesDirectory) {
+                config.packagesDirectory = URL.resolve(config.packagesDirectory);
+            } else {
+              config.packagesDirectory = URL.resolve(config.mainPackageLocation, "../");
+            }
+            // config.packagesDirectory = URL.resolve(document.origin, "node_modules/");
         } else {
             config.packagesDirectory = URL.resolve(location, "node_modules/");
         }
