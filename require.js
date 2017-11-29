@@ -143,6 +143,11 @@
     var normalizePattern = /^(.*)\.js$/,
         normalizeIdCache = new Map();
     function normalizeId(id) {
+        if (id === 'md5.js') return id
+        if (id === 'sha.js') return id
+        if (id === 'des.js') return id
+        if (id === 'bn.js') return id
+        if (id === 'hash.js') return id
         var result;
         if (!normalizeIdCache.has(id)) {
             result = normalizePattern.exec(id);
@@ -401,7 +406,7 @@
         }
         delete description.overlay;
 
-        if (config.strategy === 'flat') {
+        // if (config.strategy === 'flat') {
             // config.packagesDirectory = URL.resolve(config.mainPackageLocation, "node_modules/");
             if (config.packagesDirectory) {
                 config.packagesDirectory = URL.resolve(config.packagesDirectory);
@@ -409,9 +414,9 @@
               config.packagesDirectory = URL.resolve(config.mainPackageLocation, "../");
             }
             // config.packagesDirectory = URL.resolve(document.origin, "node_modules/");
-        } else {
+        /*} else {
             config.packagesDirectory = URL.resolve(location, "node_modules/");
-        }
+        }*/
 
         // The default "main" module of a package is 'index' by default.
         description.main = description.main || 'index';
@@ -597,6 +602,7 @@
         // dependencies
         exports.deepLoadDebug = false;
         function deepLoad(topId, viaId, loading) {
+            // console.log('Jim deepLoad', topId)
             // this is a memo of modules already being loaded so we don’t
             // data-lock on a cycle of dependencies.
             loading = loading || Object.create(null);
@@ -1030,12 +1036,44 @@
                     try {
                         const parsedJson = JSON.parse(json);
                         if (parsedJson.name !== 'assert') {
-                            parsedJson.dependencies = parsedJson.dependencies || []
-                            parsedJson.dependencies.assert = '^1.4.1'
+                            parsedJson.dependencies = parsedJson.dependencies || [];
+                            parsedJson.dependencies.assert = '^1.4.1';
                         }
                         if (parsedJson.name !== 'url') {
-                            parsedJson.dependencies = parsedJson.dependencies || []
-                            parsedJson.dependencies.url = '^0.11.0'
+                            parsedJson.dependencies = parsedJson.dependencies || [];
+                            parsedJson.dependencies.url = '^0.11.0';
+                        }
+                        if (parsedJson.name !== 'buffer') {
+                            parsedJson.dependencies = parsedJson.dependencies || [];
+                            parsedJson.dependencies.buffer = '^5.0.8';
+                        }
+                        if (parsedJson.name !== 'util') {
+                            parsedJson.dependencies = parsedJson.dependencies || [];
+                            parsedJson.dependencies.util = '^0.10.3';
+                        }
+                        if (parsedJson.name !== 'string_decoder') {
+                            parsedJson.dependencies = parsedJson.dependencies || [];
+                            parsedJson.dependencies.string_decoder = '^1.0.3';
+                        }
+                        if (parsedJson.name !== 'events') {
+                            parsedJson.dependencies = parsedJson.dependencies || [];
+                            parsedJson.dependencies.events = '^1.1.1';
+                        }
+                        if (parsedJson.name !== 'crypto-browserify') {
+                            parsedJson.dependencies = parsedJson.dependencies || [];
+                            parsedJson.dependencies['crypto-browserify'] = '^3.12.0';
+                            parsedJson.mappings = parsedJson.mappings || {};
+                            parsedJson.mappings.crypto = {
+                                "name": "crypto-browserify"
+                            };
+                        }
+                        if (parsedJson.name !== 'stream-browserify') {
+                            parsedJson.dependencies = parsedJson.dependencies || [];
+                            parsedJson.dependencies['stream-browserify'] = '^2.0.1';
+                            parsedJson.mappings = parsedJson.mappings || {};
+                            parsedJson.mappings.stream = {
+                                "name": "stream-browserify"
+                            };
                         }
                         return parsedJson;
                     } catch (error) {
@@ -1189,7 +1227,8 @@
 
         // Clear commented require calls
         factory = factory.replace(escapeSimpleComment, '')
-            .replace(escapeMultiComment, '');
+            .replace(escapeMultiComment, '')
+            .replace('browserify-aes/modes', 'browserify-aes/modes/index')
 
         var o = [], myArray;
         while ((myArray = requirePattern.exec(factory)) !== null) {
@@ -1205,6 +1244,30 @@
         return function(module) {
             if (!module.dependencies && module.text !== void 0) {
                 module.dependencies = config.parseDependencies(module.text);
+                if (config.name === 'browserify-aes') {
+                    for (let i = 0; i < module.dependencies.length; i++) {
+                        if (module.dependencies[i] === './modes') {
+                            module.dependencies[i] = './modes/index'
+                        }
+                    }
+                }
+                if (config.name === 'elliptic') {
+                    for (let i = 0; i < module.dependencies.length; i++) {
+                        if (module.dependencies[i] === './elliptic/curve') {
+                            module.dependencies[i] = './elliptic/curve/index'
+                        }
+                        if (module.dependencies[i] === '../curve') {
+                            module.dependencies[i] = '../curve/index'
+                        }
+                        if (module.dependencies[i] === './elliptic/ec') {
+                            module.dependencies[i] = './elliptic/ec/index'
+                        }
+                        if (module.dependencies[i] === './elliptic/eddsa') {
+                            module.dependencies[i] = './elliptic/eddsa/index'
+                        }
+                    }
+                }
+                // console.log('Jim dependencies', config.name, module.dependencies)
             }
             compile(module);
             if (module && !module.dependencies) {
@@ -1517,6 +1580,11 @@
 
             function loadMapping(mappingRequire) {
                 var rest = id.slice(prefix.length + 1);
+                /*
+                if (prefix === 'browserify-aes' && rest === 'modes') {
+                    rest = 'modes/index.js'
+                }
+                */
                 config.mappings[prefix].mappingRequire = mappingRequire;
                 module.mappingRedirect = rest;
                 module.mappingRequire = mappingRequire;
